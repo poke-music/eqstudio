@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EQ Studio</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#12121a;--surface2:#1c1c28;--surface3:#222230;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --accent:#7c6cfa;--accent2:#fa6c9a;--accent3:#4adebc;
+  --text:#f0eeff;--muted:#6b6a84;
+  --green:#4ade80;
+}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;padding:2rem;display:flex;flex-direction:column;align-items:center}
+header{width:100%;max-width:960px;display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+.logo{font-size:1.5rem;font-weight:800;letter-spacing:-0.03em}.logo span{color:var(--accent)}
+.status-label{font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.main-card{width:100%;max-width:960px;background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden}
+.viz-wrap{background:#060610;padding:1.25rem 1.25rem 0}
+#viz{width:100%;height:110px;display:block;border-radius:8px}
+.tab-bar{display:flex;border-bottom:1px solid var(--border);padding:0 1.5rem}
+.tab{font-family:'Space Mono',monospace;font-size:0.65rem;letter-spacing:.08em;text-transform:uppercase;padding:10px 16px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.tab:hover{color:var(--text)}.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.panel{display:none;padding:1.5rem}.panel.active{display:block}
+
+/* EQ */
+.presets-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.5rem}
+.preset-btn{font-family:'Space Mono',monospace;font-size:0.65rem;padding:5px 12px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;text-transform:uppercase}
+.preset-btn:hover{border-color:var(--accent);color:var(--text)}.preset-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.bands-outer{display:flex;gap:6px}
+.db-scale{display:flex;flex-direction:column;justify-content:space-between;height:160px;margin-right:2px}
+.db-mark{font-family:'Space Mono',monospace;font-size:0.5rem;color:var(--muted);text-align:right}
+.bands{display:grid;grid-template-columns:repeat(10,1fr);gap:10px;align-items:end;flex:1}
+.band{display:flex;flex-direction:column;align-items:center;gap:6px}
+.band-val{font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--muted);min-width:30px;text-align:center}
+.band-label{font-family:'Space Mono',monospace;font-size:0.55rem;color:var(--muted);text-align:center}
+.slider-track{position:relative;height:160px;width:26px;display:flex;justify-content:center}
+.center-line{position:absolute;top:50%;left:3px;right:3px;height:1px;background:var(--border);pointer-events:none}
+input[type=range][orient=vertical]{-webkit-appearance:slider-vertical;appearance:slider-vertical;writing-mode:vertical-lr;direction:rtl;width:26px;height:160px;cursor:pointer;background:transparent;outline:none;padding:0}
+input[type=range][orient=vertical]::-webkit-slider-runnable-track{width:4px;background:var(--surface2);border-radius:2px}
+input[type=range][orient=vertical]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);margin-left:-7px;transition:transform .1s}
+input[type=range][orient=vertical]::-moz-range-track{width:4px;background:var(--surface2);border-radius:2px}
+input[type=range][orient=vertical]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);border:none}
+input[type=range][orient=vertical]:hover::-webkit-slider-thumb{transform:scale(1.2)}
+
+/* Space */
+.space-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.space-grid{grid-template-columns:1fr}}
+.space-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
+.space-title{font-size:0.8rem;font-weight:600;margin-bottom:3px}
+.space-sub{font-family:'Space Mono',monospace;font-size:0.58rem;color:var(--muted);margin-bottom:1rem;line-height:1.6}
+.knob-row{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+.knob-group{display:flex;flex-direction:column;gap:6px;align-items:center;flex:1;min-width:70px}
+.knob-label{font-family:'Space Mono',monospace;font-size:0.58rem;color:var(--muted);text-align:center}
+.knob-val{font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent3);text-align:center}
+input[type=range].knob{width:100%;-webkit-appearance:none;height:4px;background:var(--surface3);border-radius:2px;outline:none;cursor:pointer}
+input[type=range].knob::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent3)}
+input[type=range].knob::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent3);border:none}
+.toggle-row{display:flex;gap:8px;margin-top:.75rem;flex-wrap:wrap}
+.toggle-btn{font-family:'Space Mono',monospace;font-size:0.6rem;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;text-transform:uppercase}
+.toggle-btn.on{background:var(--accent3);border-color:var(--accent3);color:#001a14}
+.toggle-btn:hover:not(.on){border-color:var(--accent3);color:var(--text)}
+.pad-wrap{display:flex;flex-direction:column;align-items:center;gap:6px}
+#spatialPad{width:130px;height:130px;border-radius:50%;border:1px solid var(--border2);background:var(--surface3);position:relative;cursor:crosshair;flex-shrink:0}
+.pad-dot{width:14px;height:14px;border-radius:50%;background:var(--accent2);position:absolute;transform:translate(-50%,-50%);top:50%;left:50%;box-shadow:0 0 8px rgba(250,108,154,.7);pointer-events:none}
+.pad-cross-h{position:absolute;left:8%;right:8%;top:50%;height:1px;background:var(--border);pointer-events:none}
+.pad-cross-v{position:absolute;top:8%;bottom:8%;left:50%;width:1px;background:var(--border);pointer-events:none}
+.pad-lbl{font-family:'Space Mono',monospace;font-size:0.5rem;color:var(--muted)}
+
+/* Controls bar */
+.controls-row{display:flex;gap:14px;margin-top:1.25rem;align-items:center;flex-wrap:wrap;padding-top:1.25rem;border-top:1px solid var(--border)}
+.volume-group{display:flex;align-items:center;gap:10px;flex:1;min-width:150px}
+.vol-label{font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--muted);min-width:54px}
+input[type=range].hz{flex:1;-webkit-appearance:none;height:4px;background:var(--surface2);border-radius:2px;outline:none;cursor:pointer}
+input[type=range].hz::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent2)}
+input[type=range].hz::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent2);border:none}
+.action-btns{display:flex;gap:8px;margin-left:auto}
+.btn{font-family:'Space Mono',monospace;font-size:0.65rem;padding:7px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;text-transform:uppercase;letter-spacing:.06em;transition:all .15s}
+.btn:hover{border-color:var(--accent)}.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.primary:hover{opacity:.85}
+.btn.dl{background:var(--accent3);border-color:var(--accent3);color:#001a10}.btn.dl:hover{opacity:.85}.btn.dl:disabled{opacity:.35;cursor:not-allowed}
+
+/* Export */
+.export-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:1.25rem;max-width:520px;margin:0 auto}
+select.sel{background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:6px 10px;border-radius:8px;font-family:'Space Mono',monospace;font-size:0.65rem;outline:none;cursor:pointer;flex:1}
+
+/* File row */
+.file-row{display:flex;align-items:center;gap:10px;padding:1rem 1.5rem;background:var(--surface2);border-top:1px solid var(--border)}
+input.file-input{display:none}
+.upload-btn{font-family:'Space Mono',monospace;font-size:0.65rem;padding:7px 14px;border-radius:8px;border:1px dashed var(--muted);background:transparent;color:var(--muted);cursor:pointer;text-transform:uppercase;white-space:nowrap;transition:all .15s}
+.upload-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+.track-info{font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.prog-bar{height:3px;background:var(--surface3);border-radius:2px;flex:1;min-width:50px;position:relative;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;background:var(--accent);width:0%;transition:width .4s linear}
+.play-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--surface3);color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.9rem;transition:all .15s;flex-shrink:0}
+.play-btn:hover{border-color:var(--accent);background:var(--accent)}
+.render-prog{font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--accent3);min-width:64px;text-align:right}
+.export-bar-wrap{background:var(--surface3);border-radius:8px;height:4px;margin-top:12px;overflow:hidden}
+.export-bar{height:100%;width:0%;background:var(--accent3);border-radius:8px;transition:width .25s}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">EQ<span>Studio</span></div>
+  <div class="status-label"><span class="status-dot"></span><span id="statusTxt">AUDIO ENGINE READY</span></div>
+</header>
+
+<div class="main-card">
+  <div class="viz-wrap">
+    <canvas id="viz" height="110"></canvas>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" data-tab="eq">10-BAND EQ</button>
+    <button class="tab" data-tab="space">SPACE &amp; 3D</button>
+    <button class="tab" data-tab="export">EXPORT</button>
+  </div>
+
+  <!-- EQ Panel -->
+  <div class="panel active" id="panel-eq">
+    <div class="presets-row" id="presets"></div>
+    <div class="bands-outer">
+      <div class="db-scale">
+        <div class="db-mark">+12</div><div class="db-mark">+6</div>
+        <div class="db-mark">0</div><div class="db-mark">-6</div><div class="db-mark">-12</div>
+      </div>
+      <div class="bands" id="bands"></div>
+    </div>
+    <div class="controls-row">
+      <div class="volume-group">
+        <span class="vol-label">VOLUME</span>
+        <input type="range" class="hz" id="vol" min="0" max="100" value="80">
+        <span class="db-mark" id="volVal" style="min-width:24px">80</span>
+      </div>
+      <div class="volume-group">
+        <span class="vol-label">PRE-GAIN</span>
+        <input type="range" class="hz" id="pregain" min="-12" max="12" value="0">
+        <span class="db-mark" id="pregainVal" style="min-width:36px">0 dB</span>
+      </div>
+      <div class="action-btns">
+        <button class="btn" onclick="resetAll()">RESET</button>
+        <button class="btn primary" onclick="applyRandom()">RANDOM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Space Panel -->
+  <div class="panel" id="panel-space">
+    <div class="space-grid">
+
+      <!-- Stereo Widener -->
+      <div class="space-card">
+        <div class="space-title">ステレオ・ワイドナー</div>
+        <div class="space-sub">Mid/Side処理で音の広がりを調整。0%=モノ・100%=標準・200%=超ワイド</div>
+        <div class="knob-row">
+          <div class="knob-group">
+            <div class="knob-val" id="widthVal">100%</div>
+            <input type="range" class="knob" id="widthKnob" min="0" max="200" value="100">
+            <div class="knob-label">STEREO WIDTH</div>
+          </div>
+          <div class="knob-group">
+            <div class="knob-val" id="midVal">0 dB</div>
+            <input type="range" class="knob" id="midKnob" min="-12" max="12" value="0">
+            <div class="knob-label">MID GAIN</div>
+          </div>
+          <div class="knob-group">
+            <div class="knob-val" id="sideVal">0 dB</div>
+            <input type="range" class="knob" id="sideKnob" min="-12" max="12" value="0">
+            <div class="knob-label">SIDE GAIN</div>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <button class="toggle-btn on" id="widenBtn" onclick="toggleWiden()">WIDE ON</button>
+          <button class="toggle-btn" id="monoBtn" onclick="toggleMono()">MONO CHECK</button>
+        </div>
+      </div>
+
+      <!-- Spatial / Reverb -->
+      <div class="space-card">
+        <div class="space-title">立体音響 / リバーブ</div>
+        <div class="space-sub">パッドで音源位置を設定。左右=パン、上=近く(ドライ)、下=遠く(リバーブ多め)</div>
+        <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+          <div class="pad-wrap">
+            <div id="spatialPad">
+              <div class="pad-cross-h"></div>
+              <div class="pad-cross-v"></div>
+              <div class="pad-dot" id="padDot"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;width:130px">
+              <span class="pad-lbl">L</span><span class="pad-lbl">NEAR</span><span class="pad-lbl">R</span>
+            </div>
+            <div style="display:flex;justify-content:center;width:130px;margin-top:1px"><span class="pad-lbl">FAR</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;flex:1;min-width:110px;padding-top:4px">
+            <div class="knob-group">
+              <div class="knob-val" id="reverbVal">20%</div>
+              <input type="range" class="knob" id="reverbKnob" min="0" max="100" value="20">
+              <div class="knob-label">REVERB MIX</div>
+            </div>
+            <div class="knob-group">
+              <div class="knob-val" id="roomVal">50%</div>
+              <input type="range" class="knob" id="roomKnob" min="0" max="100" value="50">
+              <div class="knob-label">ROOM SIZE</div>
+            </div>
+            <div class="toggle-row">
+              <button class="toggle-btn on" id="reverbBtn" onclick="toggleReverb()">REVERB ON</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Panel -->
+  <div class="panel" id="panel-export">
+    <div class="export-card">
+      <div class="space-title">エクスポート設定</div>
+      <div class="space-sub">現在のEQ・ワイドナー・リバーブ設定を適用してWAVファイルを書き出します。<br>ブラウザ内オフラインレンダリングなので音質劣化ゼロです。</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:1rem;margin-bottom:1rem">
+        <div class="volume-group">
+          <span class="vol-label" style="min-width:72px">正規化</span>
+          <select id="normSelect" class="sel">
+            <option value="0">なし</option>
+            <option value="1">ピーク正規化 (-1 dBFS)</option>
+            <option value="2">ラウドネス正規化 (-14 LUFS)</option>
+          </select>
+        </div>
+      </div>
+      <div id="exportInfo" style="font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--muted);margin-bottom:14px;line-height:1.9">
+        ファイルが読み込まれていません。先に音楽ファイルを選択してください。
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn dl" id="exportBtn" onclick="startExport()" disabled>▼ WAV エクスポート</button>
+        <span class="render-prog" id="renderProg"></span>
+      </div>
+      <div class="export-bar-wrap"><div class="export-bar" id="exportBar"></div></div>
+    </div>
+  </div>
+
+  <!-- File Row -->
+  <div class="file-row">
+    <input class="file-input" type="file" id="fileInput" accept="audio/*">
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">+ ファイル選択</button>
+    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+    <span class="track-info" id="trackInfo">ファイルを選択してください</span>
+    <button class="play-btn" id="playBtn">▶</button>
+  </div>
+</div>
+
+<script>
+/* ===== CONSTANTS ===== */
+const BANDS=[{freq:'32Hz',f:32},{freq:'64Hz',f:64},{freq:'125Hz',f:125},{freq:'250Hz',f:250},{freq:'500Hz',f:500},{freq:'1kHz',f:1e3},{freq:'2kHz',f:2e3},{freq:'4kHz',f:4e3},{freq:'8kHz',f:8e3},{freq:'16kHz',f:16e3}];
+const PRESETS={'FLAT':[0,0,0,0,0,0,0,0,0,0],'BASS BOOST':[8,7,5,2,0,0,0,0,0,0],'TREBLE':[0,0,0,0,0,2,4,6,7,8],'V-SHAPE':[7,5,2,0,-2,-2,0,2,5,7],'VOCAL':[-2,-2,0,3,5,5,3,0,-2,-2],'JAZZ':[4,3,1,2,0,0,1,2,3,3],'ROCK':[5,4,3,1,0,0,1,3,4,5],'LOFI':[4,3,2,1,0,-1,-2,-3,-4,-5]};
+
+/* ===== STATE ===== */
+let audioCtx,analyser,source,gainNode,preGainNode,pannerNode,convolver,dryGain,wetGain,msProc;
+let filters=[];
+let eqVals=new Array(10).fill(0);
+let audioBuffer=null,playing=false;
+let widthPct=100,midGainDb=0,sideGainDb=0,widenOn=true,monoOn=false;
+let reverbMix=0.2,roomSize=0.5,reverbOn=true;
+let panVal=0;
+let lastFileName='output';
+let startTime=0;
+
+/* ===== INIT ===== */
+function initAudio(){
+  if(audioCtx)return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  analyser=audioCtx.createAnalyser();analyser.fftSize=512;
+  preGainNode=audioCtx.createGain();preGainNode.gain.value=1;
+  gainNode=audioCtx.createGain();gainNode.gain.value=0.8;
+  pannerNode=audioCtx.createStereoPanner();pannerNode.pan.value=0;
+  convolver=audioCtx.createConvolver();
+  dryGain=audioCtx.createGain();dryGain.gain.value=1-reverbMix*0.7;
+  wetGain=audioCtx.createGain();wetGain.gain.value=reverbMix;
+  buildImpulse(roomSize);
+  buildMsProcessor();
+  buildChain();
+  drawViz();
+}
+
+function buildMsProcessor(){
+  if(msProc)try{msProc.disconnect();}catch(e){}
+  msProc=audioCtx.createScriptProcessor(4096,2,2);
+  msProc.onaudioprocess=ev=>{
+    const iL=ev.inputBuffer.getChannelData(0),iR=ev.inputBuffer.getChannelData(1);
+    const oL=ev.outputBuffer.getChannelData(0),oR=ev.outputBuffer.getChannelData(1);
+    const w=widenOn?widthPct/100:1;
+    const mg=widenOn?Math.pow(10,midGainDb/20):1;
+    const sg=widenOn?Math.pow(10,sideGainDb/20):1;
+    for(let i=0;i<iL.length;i++){
+      const mid=(iL[i]+iR[i])*0.5*mg;
+      const side=(iL[i]-iR[i])*0.5*sg*w;
+      if(monoOn){oL[i]=mid;oR[i]=mid;}
+      else{oL[i]=mid+side;oR[i]=mid-side;}
+    }
+  };
+}
+
+function buildChain(){
+  [preGainNode,...filters].forEach(n=>{try{n.disconnect();}catch(e){}});
+  try{msProc.disconnect();}catch(e){}
+  [pannerNode,dryGain,wetGain,convolver,gainNode].forEach(n=>{try{n.disconnect();}catch(e){}});
+  filters=BANDS.map((b,i)=>{
+    const f=audioCtx.createBiquadFilter();
+    f.type=i===0?'lowshelf':i===9?'highshelf':'peaking';
+    f.frequency.value=b.f;f.Q.value=1.4;f.gain.value=eqVals[i];return f;
+  });
+  preGainNode.connect(filters[0]);
+  for(let i=0;i<filters.length-1;i++)filters[i].connect(filters[i+1]);
+  filters[filters.length-1].connect(msProc);
+  msProc.connect(pannerNode);
+  pannerNode.connect(dryGain);pannerNode.connect(convolver);
+  convolver.connect(wetGain);
+  dryGain.connect(gainNode);wetGain.connect(gainNode);
+  gainNode.connect(analyser);analyser.connect(audioCtx.destination);
+}
+
+function buildImpulse(sz){
+  if(!audioCtx)return;
+  const sr=audioCtx.sampleRate,len=Math.floor(sr*(0.4+sz*3.5));
+  const buf=audioCtx.createBuffer(2,len,sr);
+  for(let c=0;c<2;c++){const d=buf.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,1.2+sz*3);}
+  convolver.buffer=buf;
+}
+
+/* ===== FILE ===== */
+document.getElementById('fileInput').addEventListener('change',async e=>{
+  const file=e.target.files[0];if(!file)return;
+  initAudio();if(audioCtx.state==='suspended')audioCtx.resume();
+  document.getElementById('statusTxt').textContent='LOADING...';
+  const arr=await file.arrayBuffer();
+  audioBuffer=await audioCtx.decodeAudioData(arr);
+  lastFileName=file.name.replace(/\.[^.]+$/,'');
+  document.getElementById('trackInfo').textContent=file.name;
+  document.getElementById('exportBtn').disabled=false;
+  const d=audioBuffer.duration;
+  document.getElementById('exportInfo').innerHTML=
+    `ファイル: <span style="color:var(--text)">${file.name}</span><br>`+
+    `長さ: <span style="color:var(--text)">${Math.floor(d/60)}:${String(Math.floor(d%60)).padStart(2,'0')}</span>`+
+    `　SR: <span style="color:var(--text)">${audioBuffer.sampleRate}Hz</span>`+
+    `　CH: <span style="color:var(--text)">${audioBuffer.numberOfChannels}</span>`;
+  document.getElementById('statusTxt').textContent='READY';
+  startPlay();
+});
+
+/* ===== PLAYBACK ===== */
+function startPlay(){
+  if(!audioBuffer)return;
+  if(source){try{source.stop();}catch(e){}try{source.disconnect();}catch(e){}}
+  source=audioCtx.createBufferSource();source.buffer=audioBuffer;
+  source.connect(preGainNode);source.loop=true;
+  startTime=audioCtx.currentTime;source.start(0);
+  playing=true;document.getElementById('playBtn').textContent='⏹';
+}
+function stopPlay(){
+  if(source){try{source.stop();}catch(e){}try{source.disconnect();}catch(e){}}
+  source=null;playing=false;document.getElementById('playBtn').textContent='▶';
+}
+document.getElementById('playBtn').addEventListener('click',()=>{
+  if(!audioBuffer)return;
+  if(playing)stopPlay();
+  else{initAudio();if(audioCtx.state==='suspended')audioCtx.resume();startPlay();}
+});
+setInterval(()=>{
+  if(!playing||!audioBuffer)return;
+  const t=(audioCtx.currentTime-startTime)%audioBuffer.duration;
+  document.getElementById('progFill').style.width=(t/audioBuffer.duration*100).toFixed(1)+'%';
+},300);
+
+/* ===== VISUALIZER ===== */
+function drawViz(){
+  const cv=document.getElementById('viz'),ctx=cv.getContext('2d');
+  function rsz(){cv.width=cv.offsetWidth*devicePixelRatio;cv.height=cv.offsetHeight*devicePixelRatio;}
+  rsz();window.addEventListener('resize',rsz);
+  (function frame(){
+    requestAnimationFrame(frame);
+    const W=cv.width,H=cv.height;
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#060610';ctx.fillRect(0,0,W,H);
+    if(analyser&&playing){
+      const d=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(d);
+      const n=d.length,bw=(W/n)*2.15;
+      for(let i=0;i<n;i++){
+        const h=(d[i]/255)*H*0.9,hue=255+(i/n)*90;
+        ctx.fillStyle=`hsla(${hue},76%,60%,0.82)`;
+        ctx.fillRect(i*(bw+1),H-h,bw,h);
+      }
+    }else{
+      const t=Date.now()*0.001;
+      for(let i=0;i<55;i++){const h=(Math.sin(i*.5+t)*.15+.12)*H,hue=255+(i/55)*90;ctx.fillStyle=`hsla(${hue},50%,40%,.22)`;ctx.fillRect(i*(W/55),H-h,W/55-1.5,h);}
+    }
+  })();
+}
+drawViz();
+
+/* ===== TABS ===== */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ===== EQ BANDS ===== */
+const bandsEl=document.getElementById('bands');
+BANDS.forEach((b,i)=>{
+  const div=document.createElement('div');div.className='band';
+  div.innerHTML=`<div class="band-val" id="bv${i}">0 dB</div><div class="slider-track"><div class="center-line"></div><input type="range" orient="vertical" min="-12" max="12" step="0.5" value="0" id="bs${i}"></div><div class="band-label">${b.freq}</div>`;
+  bandsEl.appendChild(div);
+  div.querySelector('input').addEventListener('input',e=>{
+    const v=parseFloat(e.target.value);eqVals[i]=v;
+    const vl=document.getElementById(`bv${i}`);
+    vl.textContent=(v>=0?'+':'')+v+' dB';
+    vl.style.color=v>0?'var(--accent)':v<0?'var(--accent2)':'var(--muted)';
+    if(filters[i])filters[i].gain.value=v;
+    setActivePreset(null);
+  });
+});
+
+/* ===== PRESETS ===== */
+const presetsEl=document.getElementById('presets');
+Object.keys(PRESETS).forEach(name=>{
+  const btn=document.createElement('button');btn.className='preset-btn'+(name==='FLAT'?' active':'');
+  btn.textContent=name;btn.dataset.name=name;
+  btn.addEventListener('click',()=>applyPreset(name));presetsEl.appendChild(btn);
+});
+function applyPreset(name){
+  const p=PRESETS[name];eqVals=[...p];
+  p.forEach((v,i)=>{
+    document.getElementById(`bs${i}`).value=v;
+    const vl=document.getElementById(`bv${i}`);
+    vl.textContent=(v>=0?'+':'')+v+' dB';
+    vl.style.color=v>0?'var(--accent)':v<0?'var(--accent2)':'var(--muted)';
+    if(filters[i])filters[i].gain.value=v;
+  });
+  setActivePreset(name);
+}
+function setActivePreset(n){document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.dataset.name===n));}
+
+/* ===== EQ CONTROLS ===== */
+document.getElementById('vol').addEventListener('input',e=>{
+  const v=parseInt(e.target.value);document.getElementById('volVal').textContent=v;
+  if(gainNode)gainNode.gain.value=v/100;
+});
+document.getElementById('pregain').addEventListener('input',e=>{
+  const v=parseFloat(e.target.value);document.getElementById('pregainVal').textContent=(v>=0?'+':'')+v+' dB';
+  if(preGainNode)preGainNode.gain.value=Math.pow(10,v/20);
+});
+function resetAll(){
+  applyPreset('FLAT');
+  document.getElementById('vol').value=80;document.getElementById('volVal').textContent='80';if(gainNode)gainNode.gain.value=0.8;
+  document.getElementById('pregain').value=0;document.getElementById('pregainVal').textContent='0 dB';if(preGainNode)preGainNode.gain.value=1;
+  setWidth(100);setMidGain(0);setSideGain(0);
+  setReverbMix(20);setRoomSize(50);
+  setPadPos(0.5,0.5);
+}
+function applyRandom(){
+  setActivePreset(null);
+  const r=()=>Math.round((Math.random()*24-12)*2)/2;
+  eqVals=BANDS.map(()=>r());
+  eqVals.forEach((v,i)=>{
+    document.getElementById(`bs${i}`).value=v;
+    const vl=document.getElementById(`bv${i}`);
+    vl.textContent=(v>=0?'+':'')+v+' dB';
+    vl.style.color=v>0?'var(--accent)':v<0?'var(--accent2)':'var(--muted)';
+    if(filters[i])filters[i].gain.value=v;
+  });
+}
+
+/* ===== WIDENER ===== */
+function setWidth(v){
+  widthPct=v;document.getElementById('widthVal').textContent=v+'%';
+  document.getElementById('widthKnob').value=v;
+}
+function setMidGain(v){
+  midGainDb=v;document.getElementById('midVal').textContent=(v>=0?'+':'')+v+' dB';
+  document.getElementById('midKnob').value=v;
+}
+function setSideGain(v){
+  sideGainDb=v;document.getElementById('sideVal').textContent=(v>=0?'+':'')+v+' dB';
+  document.getElementById('sideKnob').value=v;
+}
+document.getElementById('widthKnob').addEventListener('input',e=>setWidth(parseInt(e.target.value)));
+document.getElementById('midKnob').addEventListener('input',e=>setMidGain(parseFloat(e.target.value)));
+document.getElementById('sideKnob').addEventListener('input',e=>setSideGain(parseFloat(e.target.value)));
+function toggleWiden(){
+  widenOn=!widenOn;
+  const b=document.getElementById('widenBtn');b.textContent=widenOn?'WIDE ON':'WIDE OFF';b.classList.toggle('on',widenOn);
+}
+function toggleMono(){
+  monoOn=!monoOn;
+  const b=document.getElementById('monoBtn');b.textContent=monoOn?'MONO ON':'MONO CHECK';b.classList.toggle('on',monoOn);
+}
+
+/* ===== REVERB ===== */
+function setReverbMix(pct){
+  reverbMix=pct/100;
+  document.getElementById('reverbKnob').value=pct;
+  document.getElementById('reverbVal').textContent=pct+'%';
+  if(dryGain&&reverbOn)dryGain.gain.value=1-reverbMix*0.7;
+  if(wetGain&&reverbOn)wetGain.gain.value=reverbMix;
+}
+function setRoomSize(pct){
+  roomSize=pct/100;
+  document.getElementById('roomKnob').value=pct;
+  document.getElementById('roomVal').textContent=pct+'%';
+  if(audioCtx)buildImpulse(roomSize);
+}
+document.getElementById('reverbKnob').addEventListener('input',e=>setReverbMix(parseInt(e.target.value)));
+document.getElementById('roomKnob').addEventListener('input',e=>setRoomSize(parseInt(e.target.value)));
+function toggleReverb(){
+  reverbOn=!reverbOn;
+  const b=document.getElementById('reverbBtn');b.textContent=reverbOn?'REVERB ON':'REVERB OFF';b.classList.toggle('on',reverbOn);
+  if(dryGain){dryGain.gain.value=reverbOn?1-reverbMix*0.7:1;}
+  if(wetGain){wetGain.gain.value=reverbOn?reverbMix:0;}
+}
+
+/* ===== SPATIAL PAD ===== */
+const pad=document.getElementById('spatialPad');
+const dot=document.getElementById('padDot');
+let padDragging=false;
+function setPadPos(xr,yr){
+  dot.style.left=(xr*100)+'%';dot.style.top=(yr*100)+'%';
+  panVal=xr*2-1;if(pannerNode)pannerNode.pan.value=panVal;
+  const rv=Math.max(0,Math.min(100,Math.round(yr*85)));
+  setReverbMix(rv);
+}
+function padMove(e){
+  if(!padDragging)return;
+  const r=pad.getBoundingClientRect();
+  const cx=(e.clientX||e.touches[0].clientX),cy=(e.clientY||e.touches[0].clientY);
+  setPadPos(Math.max(0,Math.min(1,(cx-r.left)/r.width)),Math.max(0,Math.min(1,(cy-r.top)/r.height)));
+}
+pad.addEventListener('mousedown',e=>{padDragging=true;padMove(e);});
+pad.addEventListener('touchstart',e=>{padDragging=true;padMove(e);e.preventDefault();},{passive:false});
+window.addEventListener('mousemove',padMove);window.addEventListener('touchmove',padMove,{passive:false});
+window.addEventListener('mouseup',()=>padDragging=false);window.addEventListener('touchend',()=>padDragging=false);
+
+/* ===== EXPORT ===== */
+async function startExport(){
+  if(!audioBuffer)return;
+  const btn=document.getElementById('exportBtn');
+  btn.disabled=true;btn.textContent='RENDERING...';
+  document.getElementById('renderProg').textContent='準備中...';
+  document.getElementById('exportBar').style.width='0%';
+  await new Promise(r=>setTimeout(r,60));
+
+  const norm=parseInt(document.getElementById('normSelect').value);
+  const sr=audioBuffer.sampleRate,len=audioBuffer.length,ch=Math.min(audioBuffer.numberOfChannels,2);
+
+  // Offline context
+  const oc=new OfflineAudioContext(ch,len,sr);
+
+  // Pre-gain
+  const ocPre=oc.createGain();ocPre.gain.value=preGainNode?preGainNode.gain.value:1;
+
+  // EQ
+  const ocF=BANDS.map((b,i)=>{
+    const f=oc.createBiquadFilter();f.type=i===0?'lowshelf':i===9?'highshelf':'peaking';
+    f.frequency.value=b.f;f.Q.value=1.4;f.gain.value=eqVals[i];return f;
+  });
+  ocPre.connect(ocF[0]);for(let i=0;i<ocF.length-1;i++)ocF[i].connect(ocF[i+1]);
+
+  // Widener using ChannelSplitter/Merger
+  const sp=oc.createChannelSplitter(2),mg2=oc.createChannelMerger(2);
+  const wL=oc.createGain(),wR=oc.createGain();
+  const w=widenOn?widthPct/100:1;
+  const mg=widenOn?Math.pow(10,midGainDb/20):1;
+  const sg=widenOn?Math.pow(10,sideGainDb/20):1;
+  // We bake M/S into a simple gain matrix: outL = (mid+side), outR = (mid-side)
+  // mid = (L+R)/2 * mg, side = (L-R)/2 * sg * w
+  // outL = (L+R)/2*mg + (L-R)/2*sg*w = L*(mg+sg*w)/2 + R*(mg-sg*w)/2
+  // outR = (L+R)/2*mg - (L-R)/2*sg*w = L*(mg-sg*w)/2 + R*(mg+sg*w)/2
+  const a=(mg+sg*w)/2,b2=(mg-sg*w)/2;
+  const gLL=oc.createGain(),gRL=oc.createGain(),gLR=oc.createGain(),gRR=oc.createGain();
+  gLL.gain.value=monoOn?0.5:a;gRL.gain.value=monoOn?0.5:b2;
+  gLR.gain.value=monoOn?0.5:b2;gRR.gain.value=monoOn?0.5:a;
+  ocF[ocF.length-1].connect(sp);
+  sp.connect(gLL,0);sp.connect(gRL,1); // -> outL
+  sp.connect(gLR,0);sp.connect(gRR,1); // -> outR
+  gLL.connect(mg2,0,0);gRL.connect(mg2,0,0);
+  gLR.connect(mg2,0,1);gRR.connect(mg2,0,1);
+
+  // Panner
+  const ocPan=oc.createStereoPanner();ocPan.pan.value=pannerNode?pannerNode.pan.value:0;
+  mg2.connect(ocPan);
+
+  // Reverb
+  const ocConv=oc.createConvolver();
+  const irLen2=Math.floor(sr*(0.4+roomSize*3.5));
+  const irBuf=oc.createBuffer(2,irLen2,sr);
+  for(let c=0;c<2;c++){const d=irBuf.getChannelData(c);for(let i=0;i<irLen2;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen2,1.2+roomSize*3);}
+  ocConv.buffer=irBuf;
+  const ocDry=oc.createGain(),ocWet=oc.createGain();
+  const rvMix=reverbOn?reverbMix:0;
+  ocDry.gain.value=1-rvMix*0.7;ocWet.gain.value=rvMix;
+  ocPan.connect(ocDry);ocPan.connect(ocConv);ocConv.connect(ocWet);
+
+  // Master
+  const ocGain=oc.createGain();ocGain.gain.value=gainNode?gainNode.gain.value:0.8;
+  ocDry.connect(ocGain);ocWet.connect(ocGain);ocGain.connect(oc.destination);
+
+  const srcN=oc.createBufferSource();srcN.buffer=audioBuffer;srcN.connect(ocPre);srcN.start(0);
+
+  document.getElementById('exportBar').style.width='25%';
+  document.getElementById('renderProg').textContent='レンダリング中...';
+
+  const rendered=await oc.startRendering();
+  document.getElementById('exportBar').style.width='65%';
+  document.getElementById('renderProg').textContent='正規化中...';
+
+  // Normalize
+  const factor=norm>0?calcNormFactor(rendered,norm):1;
+
+  document.getElementById('renderProg').textContent='エンコード中...';
+  const blob=encodeWav(rendered,factor);
+  document.getElementById('exportBar').style.width='95%';
+
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=lastFileName+'_eq.wav';a.click();
+  URL.revokeObjectURL(url);
+
+  document.getElementById('exportBar').style.width='100%';
+  document.getElementById('renderProg').textContent='完了！ ✓';
+  btn.disabled=false;btn.textContent='▼ WAV エクスポート';
+  setTimeout(()=>{document.getElementById('renderProg').textContent='';document.getElementById('exportBar').style.width='0%';},3500);
+}
+
+function calcNormFactor(buf,mode){
+  if(mode===1){
+    let peak=0;
+    for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i++)peak=Math.max(peak,Math.abs(d[i]));}
+    const tgt=Math.pow(10,-1/20);return peak>1e-6?Math.min(tgt/peak,8):1;
+  }
+  if(mode===2){
+    let sum=0,count=0;
+    for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<d.length;i++){sum+=d[i]*d[i];count++;}}
+    const rms=Math.sqrt(sum/count);if(rms<1e-9)return 1;
+    const curLufs=-0.691+10*Math.log10(rms*rms);
+    return Math.pow(10,(-14-curLufs)/20);
+  }
+  return 1;
+}
+
+function encodeWav(buf,factor=1){
+  const nCh=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
+  const ab=new ArrayBuffer(44+len*nCh*2),v=new DataView(ab);
+  const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  ws(0,'RIFF');v.setUint32(4,36+len*nCh*2,true);ws(8,'WAVE');ws(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,nCh,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*nCh*2,true);v.setUint16(32,nCh*2,true);v.setUint16(34,16,true);
+  ws(36,'data');v.setUint32(40,len*nCh*2,true);
+  let off=44;
+  const chs=[];for(let c=0;c<nCh;c++)chs.push(buf.getChannelData(c));
+  for(let i=0;i<len;i++)for(let c=0;c<nCh;c++){
+    const s=Math.max(-1,Math.min(1,chs[c][i]*factor));
+    v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;
+  }
+  return new Blob([ab],{type:'audio/wav'});
+}
+
+applyPreset('FLAT');
+</script>
+</body>
+</html>
